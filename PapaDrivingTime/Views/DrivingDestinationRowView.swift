@@ -50,16 +50,15 @@ struct DrivingDestinationRowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            urgencyBar
             cardContent
+                .frame(maxWidth: .infinity, alignment: .leading)
+            urgencyBottomBar
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(urgencyColor.opacity(0.20))
         .contentShape(Rectangle())
     }
 
-    // MARK: - Urgency bar
-
-    private var urgencyBar: some View {
+    private var urgencyBottomBar: some View {
         urgencyColor
             .frame(maxWidth: .infinity)
             .frame(height: 4)
@@ -75,10 +74,10 @@ struct DrivingDestinationRowView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(estimate.destination.displayName)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 19, weight: .bold))
                         .foregroundStyle(.primary)
                     Text(estimate.destination.displaySubtitle)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -132,10 +131,10 @@ struct DrivingDestinationRowView: View {
             VStack(alignment: .trailing, spacing: 0) {
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
                     Text(value)
-                        .font(.system(size: 32, weight: .heavy))
+                        .font(.system(size: 42, weight: .heavy))
                         .foregroundStyle(travelColor)
                     Text(unit)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(travelColor)
                 }
             }

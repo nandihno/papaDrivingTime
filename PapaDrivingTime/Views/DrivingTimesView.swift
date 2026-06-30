@@ -67,7 +67,7 @@ struct DrivingTimesView: View {
                     .padding(.bottom, 8)
 
                 contentArea
-                    .padding()
+                    .padding(.top, 8)
             }
         }
         .navigationTitle("Driving Times")
@@ -160,11 +160,14 @@ struct DrivingTimesView: View {
 
     @ViewBuilder
     private var contentArea: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             calendarBanner
+                .padding(.horizontal)
+                .padding(.bottom, 12)
 
             if combinedDestinations.isEmpty {
                 emptyState
+                    .padding(.horizontal)
             } else {
                 destinationsList
             }
@@ -295,33 +298,24 @@ struct DrivingTimesView: View {
 
     @ViewBuilder
     private var destinationsList: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            VStack(alignment: .leading, spacing: 0) {
-                switch loadState {
-                case .idle:
-                    loadingPlaceholder.padding()
+        VStack(alignment: .leading, spacing: 0) {
+            switch loadState {
+            case .idle:
+                loadingPlaceholder.padding(.horizontal)
 
-                case .loading:
-                    if let estimates = loadState.estimates {
-                        estimatesView(orderedEstimates(estimates))
-                    } else {
-                        loadingPlaceholder.padding()
-                    }
-
-                case .loaded(let estimates):
+            case .loading:
+                if let estimates = loadState.estimates {
                     estimatesView(orderedEstimates(estimates))
-
-                case .failed(let message):
-                    errorView(message: message).padding()
+                } else {
+                    loadingPlaceholder.padding(.horizontal)
                 }
-            }
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-            }
 
+            case .loaded(let estimates):
+                estimatesView(orderedEstimates(estimates))
+
+            case .failed(let message):
+                errorView(message: message).padding()
+            }
         }
     }
 
@@ -349,12 +343,6 @@ struct DrivingTimesView: View {
                 deleteDestination(estimate.destination)
             }
 
-            if index < estimates.count - 1 {
-                Rectangle()
-                    .fill(Color(.separator).opacity(0.4))
-                    .frame(height: 0.5)
-                    .padding(.leading, 70)
-            }
         }
     }
 
@@ -525,7 +513,7 @@ private struct SwipeableDrivingRow: View {
     @ViewBuilder
     private var destinationRow: some View {
         let base = DrivingDestinationRowView(estimate: estimate, provider: provider, now: now)
-            .background(Color(.secondarySystemGroupedBackground))
+            .background(Color.clear)
             .offset(x: currentOffset)
 
         if allowSwipeActions {
