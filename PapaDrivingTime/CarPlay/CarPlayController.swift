@@ -85,8 +85,15 @@ final class CarPlayController {
     }
 
     private func buildListItem(for estimate: DrivingTimeEstimate) -> CPListItem {
-        let item = CPListItem(text: estimate.destination.displayName, detailText: detailText(for: estimate))
-        item.accessoryType = .disclosureIndicator
+        let emoji = estimate.destination.isCalendarSourced ? "📅" : estimate.destination.icon
+        let color = statusColor(for: estimate)
+        let item = CPListItem(
+            text: estimate.destination.displayName,
+            detailText: detailText(for: estimate),
+            image: emojiImage(emoji, background: color),
+            accessoryImage: statusSymbol(for: estimate, color: color),
+            accessoryType: .disclosureIndicator
+        )
         item.handler = { [weak self] _, completion in
             Task { @MainActor [weak self] in
                 self?.showNavigationChoice(for: estimate)
@@ -94,6 +101,62 @@ final class CarPlayController {
             }
         }
         return item
+    }
+
+    // MARK: - Status visuals
+
+    private func statusColor(for estimate: DrivingTimeEstimate) -> UIColor {
+        guard estimate.travelMinutes != nil else { return .systemGray }
+        if let mins = estimate.minutesUntilDeparture(now: Date()) {
+            if mins <= 10 { return .systemRed }
+            if mins <= 30 { return .systemOrange }
+            return estimate.hasDelay ? .systemOrange : .systemGreen
+        }
+        return estimate.hasDelay ? .systemOrange : .systemGreen
+    }
+
+    private func statusSymbol(for estimate: DrivingTimeEstimate, color: UIColor) -> UIImage? {
+        guard estimate.travelMinutes != nil else {
+            return symbolImage("questionmark.circle.fill", color: .systemGray)
+        }
+        if let mins = estimate.minutesUntilDeparture(now: Date()) {
+            if mins <= 5  { return symbolImage("exclamationmark.circle.fill", color: color) }
+            if mins <= 10 { return symbolImage("clock.fill", color: color) }
+            if mins <= 30 { return symbolImage("clock.fill", color: color) }
+            return estimate.hasDelay
+                ? symbolImage("exclamationmark.triangle.fill", color: color)
+                : symbolImage("checkmark.circle.fill", color: color)
+        }
+        return estimate.hasDelay
+            ? symbolImage("exclamationmark.triangle.fill", color: color)
+            : symbolImage("checkmark.circle.fill", color: color)
+    }
+
+    private func symbolImage(_ name: String, color: UIColor) -> UIImage? {
+        let config = UIImage.SymbolConfiguration(pointSize: 26, weight: .semibold)
+        return UIImage(systemName: name, withConfiguration: config)?
+            .withTintColor(color, renderingMode: .alwaysOriginal)
+    }
+
+    private func emojiImage(_ emoji: String, background: UIColor) -> UIImage {
+        let size = CGSize(width: 44, height: 44)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            background.withAlphaComponent(0.85).setFill()
+            UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
+
+            let font = UIFont.systemFont(ofSize: 26)
+            let attrs: [NSAttributedString.Key: Any] = [.font: font]
+            let str = emoji as NSString
+            let textSize = str.size(withAttributes: attrs)
+            let rect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            str.draw(in: rect, withAttributes: attrs)
+        }
     }
 
     private func detailText(for estimate: DrivingTimeEstimate) -> String {
