@@ -20,6 +20,39 @@ struct DrivingTimeEstimate: Identifiable {
     var id: UUID { destination.id }
     var isAvailable: Bool { travelMinutes != nil && errorMessage == nil }
 
+    static func orderedForDisplay(_ estimates: [DrivingTimeEstimate]) -> [DrivingTimeEstimate] {
+        estimates.enumerated()
+            .sorted { lhs, rhs in
+                let left = lhs.element
+                let right = rhs.element
+                let leftIsCalendar = left.destination.isCalendarSourced
+                let rightIsCalendar = right.destination.isCalendarSourced
+
+                if leftIsCalendar != rightIsCalendar {
+                    return leftIsCalendar
+                }
+
+                if leftIsCalendar {
+                    return lhs.offset < rhs.offset
+                }
+
+                switch (left.travelMinutes, right.travelMinutes) {
+                case let (leftMinutes?, rightMinutes?):
+                    if leftMinutes != rightMinutes {
+                        return leftMinutes < rightMinutes
+                    }
+                    return lhs.offset < rhs.offset
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                case (nil, nil):
+                    return lhs.offset < rhs.offset
+                }
+            }
+            .map(\.element)
+    }
+
     static func unavailable(destination: DrivingDestination, message: String) -> DrivingTimeEstimate {
         DrivingTimeEstimate(
             destination: destination,
@@ -35,6 +68,17 @@ struct DrivingTimeEstimate: Identifiable {
         guard let departureDeadline = departureDeadline(now: now) else { return nil }
         let secondsLeft = departureDeadline.timeIntervalSince(now)
         return Int((secondsLeft / 60).rounded())
+    }
+
+    func approximateArrivalTime(now: Date = Date()) -> Date? {
+        guard let travelMinutes else { return nil }
+        return now.addingTimeInterval(Double(travelMinutes) * 60)
+    }
+
+    func approximateArrivalDisplay(now: Date = Date()) -> String? {
+        guard let arrivalTime = approximateArrivalTime(now: now) else { return nil }
+        let time = arrivalTime.formatted(date: .omitted, time: .shortened)
+        return "ETA \(time)"
     }
 
     func departureDeadline(now: Date = Date()) -> Date? {

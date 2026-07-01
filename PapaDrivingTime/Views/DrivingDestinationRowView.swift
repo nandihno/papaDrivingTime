@@ -148,6 +148,10 @@ struct DrivingDestinationRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Delay / clear status pill
             if estimate.isAvailable {
+                if let arrivalDisplay = estimate.approximateArrivalDisplay(now: now) {
+                    pill(icon: "🏁", text: arrivalDisplay, bg: Color.blue.opacity(0.10), fg: Color(red: 0.10, green: 0.30, blue: 0.75))
+                }
+
                 if let delay = estimate.delayMinutes, delay > 0 {
                     pill(icon: "⚠️", text: "+\(delay) min delay", bg: Color.orange.opacity(0.15), fg: Color(red: 0.65, green: 0.35, blue: 0.00))
                 } else if estimate.hasDelay {

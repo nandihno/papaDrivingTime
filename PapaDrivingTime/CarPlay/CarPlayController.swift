@@ -9,8 +9,11 @@ final class CarPlayController {
     private let interfaceController: CPInterfaceController
     private weak var carPlayScene: CPTemplateApplicationScene?
     private let listTemplate: CPListTemplate
+    private var refreshButton: CPBarButton?
     private var refreshTask: Task<Void, Never>?
     private var currentEstimates: [DrivingTimeEstimate] = []
+    private var lastUpdatedAt: Date?
+    private var isRefreshing = false
 
     private var provider: DrivingProvider {
         let raw = UserDefaults.standard.string(forKey: "drivingProvider") ?? DrivingProvider.apple.rawValue
@@ -25,6 +28,7 @@ final class CarPlayController {
         self.interfaceController = interfaceController
         self.carPlayScene = carPlayScene
         self.listTemplate = CPListTemplate(title: "Driving Times", sections: [])
+        configureRefreshButton()
         interfaceController.setRootTemplate(listTemplate, animated: false, completion: nil)
 
         Task { await fetchAndRefresh() }
@@ -45,6 +49,15 @@ final class CarPlayController {
     // MARK: - Fetch
 
     private func fetchAndRefresh() async {
+        guard !isRefreshing else { return }
+
+        isRefreshing = true
+        refreshButton?.isEnabled = false
+        defer {
+            isRefreshing = false
+            refreshButton?.isEnabled = true
+        }
+
         let calendarDests = await CalendarDestinationService.shared.fetchUpcomingTodayDestinations()
         let allDests = calendarDests + DrivingDestinationStore.shared.all
 
@@ -58,6 +71,7 @@ final class CarPlayController {
                 googleApiKey: googleApiKey,
                 destinations: allDests
             )
+            lastUpdatedAt = Date()
             currentEstimates = estimates
             listTemplate.updateSections([buildSection(from: estimates)])
         } catch {
@@ -67,21 +81,46 @@ final class CarPlayController {
         }
     }
 
+    private func configureRefreshButton() {
+        let button = CPBarButton(title: "Refresh") { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.fetchAndRefresh()
+            }
+        }
+        button.buttonStyle = .rounded
+        refreshButton = button
+        listTemplate.trailingNavigationBarButtons = [button]
+    }
+
     // MARK: - Section builders
 
     private func loadingSection() -> CPListSection {
         singleItemSection(text: "Updating…", detail: "Fetching driving times")
     }
 
-    private func singleItemSection(text: String, detail: String) -> CPListSection {
-        CPListSection(items: [CPListItem(text: text, detailText: detail)])
+    private func singleItemSection(text: String, detail: String, header: String? = nil) -> CPListSection {
+        CPListSection(items: [CPListItem(text: text, detailText: detail)], header: header, sectionIndexTitle: nil)
     }
 
     private func buildSection(from estimates: [DrivingTimeEstimate]) -> CPListSection {
         guard !estimates.isEmpty else {
-            return singleItemSection(text: "No Destinations", detail: "Add destinations in the PapaDrivingTime app")
+            return singleItemSection(
+                text: "No Destinations",
+                detail: "Add destinations in the PapaDrivingTime app",
+                header: lastUpdatedHeader
+            )
         }
-        return CPListSection(items: estimates.map { buildListItem(for: $0) })
+        let orderedEstimates = DrivingTimeEstimate.orderedForDisplay(estimates)
+        return CPListSection(
+            items: orderedEstimates.map { buildListItem(for: $0) },
+            header: lastUpdatedHeader,
+            sectionIndexTitle: nil
+        )
+    }
+
+    private var lastUpdatedHeader: String? {
+        guard let lastUpdatedAt else { return nil }
+        return "Last updated \(lastUpdatedAt.formatted(date: .omitted, time: .shortened))"
     }
 
     private func buildListItem(for estimate: DrivingTimeEstimate) -> CPListItem {
@@ -172,10 +211,19 @@ final class CarPlayController {
             timeStr = "\(mins) min"
         }
 
-        if let countdown = estimate.countdownText(now: Date()) {
-            return "\(timeStr) • \(countdown)"
+        let now = Date()
+        var details = [timeStr]
+        if let arrivalDisplay = estimate.approximateArrivalDisplay(now: now) {
+            details.append(arrivalDisplay)
         }
-        return "\(timeStr) • \(estimate.hasDelay ? "Delays" : "Clear")"
+
+        if let countdown = estimate.countdownText(now: now) {
+            details.append(countdown)
+        } else {
+            details.append(estimate.hasDelay ? "Delays" : "Clear")
+        }
+
+        return details.joined(separator: " • ")
     }
 
     // MARK: - Navigation choice

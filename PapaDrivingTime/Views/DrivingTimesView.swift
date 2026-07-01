@@ -305,24 +305,18 @@ struct DrivingTimesView: View {
 
             case .loading:
                 if let estimates = loadState.estimates {
-                    estimatesView(orderedEstimates(estimates))
+                    estimatesView(DrivingTimeEstimate.orderedForDisplay(estimates))
                 } else {
                     loadingPlaceholder.padding(.horizontal)
                 }
 
             case .loaded(let estimates):
-                estimatesView(orderedEstimates(estimates))
+                estimatesView(DrivingTimeEstimate.orderedForDisplay(estimates))
 
             case .failed(let message):
                 errorView(message: message).padding()
             }
         }
-    }
-
-    private func orderedEstimates(_ estimates: [DrivingTimeEstimate]) -> [DrivingTimeEstimate] {
-        let calendar = estimates.filter { $0.destination.isCalendarSourced }
-        let saved = estimates.filter { !$0.destination.isCalendarSourced }
-        return calendar + saved
     }
 
     @ViewBuilder
